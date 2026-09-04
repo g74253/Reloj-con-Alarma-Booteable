@@ -10,6 +10,7 @@
 .global bios_wait_key
 .global bios_poll_key
 .global bios_read_rtc
+.global bios_read_ticks
 
 /* Modo texto 80x25; también limpia la pantalla. */
 bios_clear_screen:
@@ -72,4 +73,16 @@ bios_poll_key:
 bios_read_rtc:
     mov ah, 0x02
     int 0x1A
+    ret
+
+/*
+ * Contador BIOS de aproximadamente 18.2 ticks por segundo.
+ * Devuelve EAX = CX:DX para mantener un cronómetro independiente del RTC.
+ */
+bios_read_ticks:
+    xor ah, ah
+    int 0x1A
+    movzx eax, cx
+    shl eax, 16
+    mov ax, dx
     ret
