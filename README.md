@@ -1,2 +1,86 @@
-# Reloj-con-Alarma-Booteable
-Tarea 1 de Sistemas Operativos 2do semestre 2026.
+# TAREA 1:    Reloj/Cronómetro con Alarma Booteable
+
+
+## Modo 1 — Bootloader y reloj RTC
+
+- bootloader de 512 bytes con firma `55 AA`;
+- bienvenida y carga de una segunda etapa;
+- confirmación `S/N` antes de iniciar;
+- interfaz de texto mediante `INT 10h`;
+- teclado mediante `INT 16h`;
+- reloj `HH:MM:SS` obtenido con `INT 1Ah, AH=02h`;
+- actualización únicamente cuando cambia el segundo;
+- finalización con la tecla `Q`.
+
+## Modo 2 — Cronómetro independiente
+
+- `M` alterna entre el reloj RTC y el cronómetro;
+- `S` inicia, pausa y reanuda el conteo;
+- `R` reinicia el cronómetro en cualquier momento;
+- el tiempo acumulado se conserva mientras está pausado;
+- el cronómetro utiliza los ticks BIOS de `INT 1Ah, AH=00h` y no modifica la
+  hora del RTC;
+- el cambio de medianoche se maneja sin perder el tiempo acumulado;
+- la interfaz indica `EN MARCHA` o `PAUSADO`.
+
+## Modo 3 — Alarma configurable
+
+- `A` permite introducir una hora en formato `HH:MM`;
+- solamente acepta valores entre `00:00` y `23:59`;
+- `Esc` abandona la entrada sin borrar la alarma anterior;
+- la hora configurada se compara en BCD con el RTC del BIOS;
+- cuando coincide, aparece un aviso visual intermitente y se emite un sonido
+  mediante el carácter `BEL` del BIOS;
+- `C` cancela una alarma configurada o que está sonando;
+- la alarma es de un solo disparo para evitar activaciones repetidas durante el
+  mismo minuto.
+
+## Archivos
+
+| Archivo | Responsabilidad |
+|---|---|
+| `boot.S` | Sector de arranque y carga de la aplicación. |
+| `app_main.S` | Confirmación y ciclo principal del reloj. |
+| `bios.S` | Servicios BIOS de video, teclado y RTC. |
+| `ui.S` | Pantallas y formato de la hora. |
+| `boot.ld`, `app.ld` | Generación de los binarios planos. |
+| `Makefile` | Compilación, validación, QEMU y grabación en USB. |
+
+## Compilar
+
+En Ubuntu:
+
+```bash
+sudo apt update
+sudo apt install build-essential binutils qemu-system-x86
+make
+make run
+```
+
+`make` genera `build/reloj.img` y verifica que:
+
+- `boot.bin` mida exactamente 512 bytes;
+- los últimos bytes sean `55 AA`;
+- la aplicación quepa en los 16 sectores reservados;
+- la imagen tenga el tamaño correcto.
+
+## Pruebas
+
+1. `make` debe terminar con `OK: imagen booteable validada`.
+2. `make run` debe mostrar la bienvenida del bootloader.
+3. `N` debe finalizar desde la confirmación.
+4. `S` debe abrir el modo reloj.
+5. La hora debe coincidir con el RTC y avanzar cada segundo.
+6. `Q` debe mostrar la despedida y detener la aplicación.
+7. `M` debe alternar entre `MODO 1: RELOJ` y `MODO 2: CRONOMETRO`.
+8. En el Modo 2, `S` debe iniciar el cronómetro desde `00:00:00`.
+9. Una segunda pulsación de `S` debe pausar el valor mostrado.
+10. Al pulsar `S` otra vez, el conteo debe continuar desde el valor pausado.
+11. `R` debe reiniciarlo a `00:00:00`, tanto pausado como en marcha.
+12. Al regresar al Modo 1 con `M`, el reloj RTC debe continuar correctamente.
+13. `A` debe solicitar cuatro dígitos en formato `HH:MM`.
+14. Una hora como `29:75` debe rechazarse y solicitarse nuevamente.
+15. `Esc` debe cerrar la entrada conservando la alarma anterior.
+16. Al configurar el minuto siguiente, debe aparecer `*** ALARMA ***` de forma
+    intermitente y debe intentarse el aviso sonoro.
+17. `C` debe cancelar tanto una alarma pendiente como una que esté sonando.
