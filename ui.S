@@ -6,6 +6,9 @@
 .global ui_show_confirmation
 .global ui_draw_static
 .global ui_render_dynamic
+.global ui_show_alarm_prompt
+.global ui_show_invalid_alarm
+.global ui_clear_status
 .global ui_show_goodbye
 
 .extern bios_set_cursor
@@ -20,6 +23,11 @@
 .extern sw_display_hour
 .extern sw_display_minute
 .extern sw_display_second
+.extern alarm_enabled
+.extern alarm_ringing
+.extern alarm_phase
+.extern alarm_hour
+.extern alarm_minute
 
 /* DH=fila, DL=columna, DS:SI=cadena. */
 print_at:
@@ -54,6 +62,10 @@ ui_draw_static:
     mov dh, 15
     mov dl, 19
     mov si, OFFSET controls_2
+    call print_at
+    mov dh, 16
+    mov dl, 19
+    mov si, OFFSET controls_3
     call print_at
     mov dh, 17
     mov dl, 33
@@ -110,13 +122,13 @@ ui_render_dynamic:
     mov al, BYTE PTR [rtc_second]
     call print_bcd2
     call clear_stopwatch_state
-    ret
+    jmp render_alarm
 
 .unavailable:
     mov si, OFFSET no_time
     call bios_print_string
     call clear_stopwatch_state
-    ret
+    jmp render_alarm
 
 .show_stopwatch:
     mov dh, 9
@@ -147,16 +159,94 @@ ui_render_dynamic:
     je .show_paused
     mov si, OFFSET stopwatch_active
     call print_at
-    ret
+    jmp render_alarm
 .show_paused:
     mov si, OFFSET stopwatch_paused
     call print_at
-    ret
+    jmp render_alarm
 
 clear_stopwatch_state:
     mov dh, 11
     mov dl, 31
     mov si, OFFSET state_spaces
+    call print_at
+    ret
+
+/* Estado persistente y aviso visual de la alarma. */
+render_alarm:
+    mov dh, 12
+    mov dl, 20
+    mov si, OFFSET alarm_line_spaces
+    call print_at
+    mov dh, 12
+    mov dl, 20
+    mov si, OFFSET alarm_label
+    call print_at
+
+    cmp BYTE PTR [alarm_ringing], 0
+    jne .alarm_is_ringing
+    cmp BYTE PTR [alarm_enabled], 0
+    je .alarm_is_off
+
+    mov al, BYTE PTR [alarm_hour]
+    call print_bcd2
+    mov al, ':'
+    call bios_print_char
+    mov al, BYTE PTR [alarm_minute]
+    call print_bcd2
+    mov si, OFFSET alarm_configured
+    call bios_print_string
+    jmp .render_banner
+
+.alarm_is_ringing:
+    mov si, OFFSET alarm_ringing_text
+    call bios_print_string
+    jmp .render_banner
+
+.alarm_is_off:
+    mov si, OFFSET alarm_off
+    call bios_print_string
+
+.render_banner:
+    mov dh, 7
+    mov dl, 31
+    mov si, OFFSET banner_spaces
+    call print_at
+    cmp BYTE PTR [alarm_ringing], 0
+    je .alarm_render_done
+    cmp BYTE PTR [alarm_phase], 0
+    je .alarm_render_done
+    mov dh, 7
+    mov dl, 31
+    mov si, OFFSET alarm_banner
+    call print_at
+.alarm_render_done:
+    ret
+
+ui_show_alarm_prompt:
+    call ui_clear_status
+    mov dh, 19
+    mov dl, 3
+    mov si, OFFSET alarm_prompt
+    call print_at
+    ret
+
+ui_show_invalid_alarm:
+    call ui_clear_status
+    mov dh, 19
+    mov dl, 8
+    mov si, OFFSET invalid_alarm
+    call print_at
+    ret
+
+ui_clear_status:
+    mov dh, 19
+    mov dl, 0
+    mov si, OFFSET status_spaces
+    call print_at
+    mov dh, 20
+    mov dl, 0
+    mov si, OFFSET status_spaces
     call print_at
     ret
 
@@ -219,12 +309,23 @@ stopwatch_label:  .asciz "Cronometro:"
 no_time:          .asciz "--:--:--"
 exit_help:        .asciz "[Q] Finalizar"
 bios_note:        .asciz "Hora obtenida con BIOS / RTC"
-controls_1:       .asciz "[M] Cambiar modo     [S] Iniciar/Pausar/Reanudar"
+controls_1:       .asciz "[M] Cambiar modo      [S] Iniciar/Pausar/Reanudar"
 controls_2:       .asciz "[R] Reiniciar cronometro"
+controls_3:       .asciz "[A] Configurar alarma      [C] Cancelar alarma"
 stopwatch_active: .asciz "EN MARCHA"
 stopwatch_paused: .asciz "PAUSADO  "
 mode_line_spaces: .asciz "                              "
 display_line_spaces: .asciz "                                "
 state_spaces:     .asciz "          "
+alarm_label:      .asciz "Alarma: "
+alarm_configured: .asciz "  configurada"
+alarm_ringing_text: .asciz "SONANDO - C para cancelar"
+alarm_off:        .asciz "desactivada"
+alarm_banner:     .asciz "*** ALARMA ***"
+banner_spaces:    .asciz "              "
+alarm_line_spaces: .asciz "                                        "
+alarm_prompt:     .asciz "Nueva alarma HH:MM (ESC conserva la actual): "
+invalid_alarm:    .asciz "Hora invalida. Use 00:00 a 23:59. Presione una tecla."
+status_spaces:    .asciz "                                                                                "
 goodbye_1:        .asciz "Aplicacion finalizada correctamente."
 goodbye_2:        .asciz "El procesador esta detenido. Reinicie el equipo cuando desee."

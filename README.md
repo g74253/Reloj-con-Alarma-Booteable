@@ -1,8 +1,5 @@
 # TAREA 1:    Reloj/Cronómetro con Alarma Booteable
 
-Proyecto incremental en ensamblador x86 para **Legacy BIOS**. Cada incremento
-se mantiene ejecutable para poder probarlo antes de agregar la siguiente
-funcionalidad.
 
 ## Modo 1 — Bootloader y reloj RTC
 
@@ -25,6 +22,18 @@ funcionalidad.
   hora del RTC;
 - el cambio de medianoche se maneja sin perder el tiempo acumulado;
 - la interfaz indica `EN MARCHA` o `PAUSADO`.
+
+## Modo 3 — Alarma configurable
+
+- `A` permite introducir una hora en formato `HH:MM`;
+- solamente acepta valores entre `00:00` y `23:59`;
+- `Esc` abandona la entrada sin borrar la alarma anterior;
+- la hora configurada se compara en BCD con el RTC del BIOS;
+- cuando coincide, aparece un aviso visual intermitente y se emite un sonido
+  mediante el carácter `BEL` del BIOS;
+- `C` cancela una alarma configurada o que está sonando;
+- la alarma es de un solo disparo para evitar activaciones repetidas durante el
+  mismo minuto.
 
 ## Archivos
 
@@ -69,3 +78,9 @@ make run
 10. Al pulsar `S` otra vez, el conteo debe continuar desde el valor pausado.
 11. `R` debe reiniciarlo a `00:00:00`, tanto pausado como en marcha.
 12. Al regresar al Modo 1 con `M`, el reloj RTC debe continuar correctamente.
+13. `A` debe solicitar cuatro dígitos en formato `HH:MM`.
+14. Una hora como `29:75` debe rechazarse y solicitarse nuevamente.
+15. `Esc` debe cerrar la entrada conservando la alarma anterior.
+16. Al configurar el minuto siguiente, debe aparecer `*** ALARMA ***` de forma
+    intermitente y debe intentarse el aviso sonoro.
+17. `C` debe cancelar tanto una alarma pendiente como una que esté sonando.
