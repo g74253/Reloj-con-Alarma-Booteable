@@ -11,6 +11,7 @@
 .global bios_poll_key
 .global bios_read_rtc
 .global bios_read_ticks
+.global bios_beep
 
 /* Modo texto 80x25; también limpia la pantalla. */
 bios_clear_screen:
@@ -85,4 +86,12 @@ bios_read_ticks:
     movzx eax, cx
     shl eax, 16
     mov ax, dx
+    ret
+
+/* BEL por teletipo BIOS; en hardware compatible activa el altavoz. */
+bios_beep:
+    push ax
+    mov al, 0x07
+    call bios_print_char
+    pop ax
     ret
